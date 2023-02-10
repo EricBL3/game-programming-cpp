@@ -5,6 +5,8 @@ const int _screenWidth = 1024;
 const int _screenHeight = 768;
 const float _paddleHeight = 100.0f;
 const float _paddleSpeed = 300.0f;
+const float _ballXSpeed = -200.0f;
+const float _ballYSpeed = 235.0f;
 
 Game::Game()
 {
@@ -12,11 +14,6 @@ Game::Game()
 	mRenderer = nullptr;
 	mIsRunning = true;
 
-	mBallPos.x = _screenWidth / 2.0f;
-	mBallPos.y = _screenHeight / 2.0f;
-
-	mPaddlePos.x = 10.0f;
-	mPaddlePos.y = _screenHeight / 2.0f;
 	mPaddleDir = 0;
 
 	mTicksCount = 0;
@@ -47,6 +44,13 @@ bool Game::Initialize()
 		SDL_Log("Failed to create renderer: %s", SDL_GetError());
 		return false;
 	}
+
+	mBallPos.x = _screenWidth / 2.0f;
+	mBallPos.y = _screenHeight / 2.0f;
+	mBallVel.x = _ballXSpeed;
+	mBallVel.y = _ballYSpeed;
+	mPaddlePos.x = 10.0f;
+	mPaddlePos.y = _screenHeight / 2.0f;
 
 	return true;
 }
@@ -118,19 +122,57 @@ void Game::UpdateGame()
 	if (mPaddleDir != 0)
 	{
 		mPaddlePos.y += mPaddleDir * _paddleSpeed * deltaTime;
-		// Check screen boundaries
+		// Check screen boundaries with top wall
 		if (mPaddlePos.y < (_paddleHeight / 2.0f + _wallThickness))
 		{
 			mPaddlePos.y = _paddleHeight / 2.0f + _wallThickness;
 		}
+		// Check screen boundaries with bottom wall
 		else if (mPaddlePos.y > (_screenHeight - _paddleHeight / 2.0f - _wallThickness))
 		{
 			mPaddlePos.y = _screenHeight - (_paddleHeight / 2.0f) - _wallThickness;
 		}
 	}
 
-	
+	mBallPos.x += mBallVel.x * deltaTime;
+	mBallPos.y += mBallVel.y * deltaTime;
 
+	
+	// Check ball collision with paddle
+	float diff = mPaddlePos.y - mBallPos.y;
+	// Take absolute value of the difference
+	diff = (diff > 0.0f) ? diff : -diff;
+	if (
+		// y-difference is small enough
+		diff <= _paddleHeight / 2.0f &&
+		// x-position is right
+		mBallPos.x <= 25.0f && mBallPos.x >= 20.0f &&
+		// the ball is moving to the left
+		mBallVel.x < 0.0f)
+	{
+		mBallVel.x *= -1.0f;
+	}
+	// Check if offscreen to end game
+	else if (mBallPos.x <= 0.0f)
+	{
+		mIsRunning = false;
+	}
+	// Check collision with right wall
+	else if(mBallPos.x >= (_screenWidth - _wallThickness) && mBallVel.x > 0.0f)
+	{
+		mBallVel.x *= -1.0f;
+	}
+
+	// Check ball collisions with top wall
+	if (mBallPos.y <= _wallThickness && mBallVel.y < 0.0f)
+	{
+		mBallVel.y *= -1;
+	}
+	// Check ball collisions with bottom wall
+	if (mBallPos.y >= _screenHeight - _wallThickness && mBallVel.y > 0.0f)
+	{
+		mBallVel.y *= -1;
+	}
 }
 
 void Game::GenerateOutput()
