@@ -4,6 +4,7 @@ const int _wallThickness = 15;
 const int _screenWidth = 1024;
 const int _screenHeight = 768;
 const float _paddleHeight = 100.0f;
+const float _paddleSpeed = 300.0f;
 
 Game::Game()
 {
@@ -16,6 +17,9 @@ Game::Game()
 
 	mPaddlePos.x = 10.0f;
 	mPaddlePos.y = _screenHeight / 2.0f;
+	mPaddleDir = 0;
+
+	mTicksCount = 0;
 }
 
 bool Game::Initialize()
@@ -77,15 +81,55 @@ void Game::ProcessInput()
 		}
 
 		const Uint8* state = SDL_GetKeyboardState(NULL);
+
 		if (state[SDL_SCANCODE_ESCAPE])
 		{
 			mIsRunning = false;
+		}
+
+		mPaddleDir = 0;
+		if (state[SDL_SCANCODE_W])
+		{
+			mPaddleDir--;
+		}
+		if (state[SDL_SCANCODE_S])
+		{
+			mPaddleDir++;
 		}
 	}
 }
 
 void Game::UpdateGame()
 {
+	// Frame limiting for 60fps
+	while (!SDL_TICKS_PASSED(SDL_GetTicks(), mTicksCount + 16))
+		;
+
+	float deltaTime = (SDL_GetTicks() - mTicksCount) / 1000.0f;
+
+	// Clamp maximum delta time
+	if (deltaTime > 0.05f)
+	{
+		deltaTime = 0.05f;
+	}
+
+	mTicksCount = SDL_GetTicks();
+
+	if (mPaddleDir != 0)
+	{
+		mPaddlePos.y += mPaddleDir * _paddleSpeed * deltaTime;
+		// Check screen boundaries
+		if (mPaddlePos.y < (_paddleHeight / 2.0f + _wallThickness))
+		{
+			mPaddlePos.y = _paddleHeight / 2.0f + _wallThickness;
+		}
+		else if (mPaddlePos.y > (_screenHeight - _paddleHeight / 2.0f - _wallThickness))
+		{
+			mPaddlePos.y = _screenHeight - (_paddleHeight / 2.0f) - _wallThickness;
+		}
+	}
+
+	
 
 }
 
