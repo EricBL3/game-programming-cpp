@@ -14,7 +14,8 @@ Game::Game()
 	mRenderer = nullptr;
 	mIsRunning = true;
 
-	mPaddleDir = 0;
+	mPlayerOnePaddleDir = 0;
+	mPlayerTwoPaddleDir = 0;
 
 	mTicksCount = 0;
 }
@@ -49,8 +50,12 @@ bool Game::Initialize()
 	mBallPos.y = _screenHeight / 2.0f;
 	mBallVel.x = _ballXSpeed;
 	mBallVel.y = _ballYSpeed;
-	mPaddlePos.x = 10.0f;
-	mPaddlePos.y = _screenHeight / 2.0f;
+
+	mPlayerOnePaddlePos.x = 10.0f;
+	mPlayerOnePaddlePos.y = _screenHeight / 2.0f;
+
+	mPlayerTwoPaddlePos.x = _screenWidth - _wallThickness -  10.0f;
+	mPlayerTwoPaddlePos.y = _screenHeight / 2.0f;
 
 	return true;
 }
@@ -91,14 +96,24 @@ void Game::ProcessInput()
 			mIsRunning = false;
 		}
 
-		mPaddleDir = 0;
+		mPlayerOnePaddleDir = 0;
 		if (state[SDL_SCANCODE_W])
 		{
-			mPaddleDir--;
+			mPlayerOnePaddleDir--;
 		}
 		if (state[SDL_SCANCODE_S])
 		{
-			mPaddleDir++;
+			mPlayerOnePaddleDir++;
+		}
+
+		mPlayerTwoPaddleDir = 0;
+		if (state[SDL_SCANCODE_I])
+		{
+			mPlayerTwoPaddleDir--;
+		}
+		if (state[SDL_SCANCODE_K])
+		{
+			mPlayerTwoPaddleDir++;
 		}
 	}
 }
@@ -119,18 +134,33 @@ void Game::UpdateGame()
 
 	mTicksCount = SDL_GetTicks();
 
-	if (mPaddleDir != 0)
+	if (mPlayerOnePaddleDir != 0)
 	{
-		mPaddlePos.y += mPaddleDir * _paddleSpeed * deltaTime;
+		mPlayerOnePaddlePos.y += mPlayerOnePaddleDir * _paddleSpeed * deltaTime;
 		// Check screen boundaries with top wall
-		if (mPaddlePos.y < (_paddleHeight / 2.0f + _wallThickness))
+		if (mPlayerOnePaddlePos.y < (_paddleHeight / 2.0f + _wallThickness))
 		{
-			mPaddlePos.y = _paddleHeight / 2.0f + _wallThickness;
+			mPlayerOnePaddlePos.y = _paddleHeight / 2.0f + _wallThickness;
 		}
 		// Check screen boundaries with bottom wall
-		else if (mPaddlePos.y > (_screenHeight - _paddleHeight / 2.0f - _wallThickness))
+		else if (mPlayerOnePaddlePos.y > (_screenHeight - _paddleHeight / 2.0f - _wallThickness))
 		{
-			mPaddlePos.y = _screenHeight - (_paddleHeight / 2.0f) - _wallThickness;
+			mPlayerOnePaddlePos.y = _screenHeight - (_paddleHeight / 2.0f) - _wallThickness;
+		}
+	}
+
+	if (mPlayerTwoPaddleDir != 0)
+	{
+		mPlayerTwoPaddlePos.y += mPlayerTwoPaddleDir * _paddleSpeed * deltaTime;
+		// Check screen boundaries with top wall
+		if (mPlayerTwoPaddlePos.y < (_paddleHeight / 2.0f + _wallThickness))
+		{
+			mPlayerTwoPaddlePos.y = _paddleHeight / 2.0f + _wallThickness;
+		}
+		// Check screen boundaries with bottom wall
+		else if (mPlayerTwoPaddlePos.y > (_screenHeight - _paddleHeight / 2.0f - _wallThickness))
+		{
+			mPlayerTwoPaddlePos.y = _screenHeight - (_paddleHeight / 2.0f) - _wallThickness;
 		}
 	}
 
@@ -138,13 +168,17 @@ void Game::UpdateGame()
 	mBallPos.y += mBallVel.y * deltaTime;
 
 	
-	// Check ball collision with paddle
-	float diff = mPaddlePos.y - mBallPos.y;
+	float diffPlayerOne = mPlayerOnePaddlePos.y - mBallPos.y;
 	// Take absolute value of the difference
-	diff = (diff > 0.0f) ? diff : -diff;
+	diffPlayerOne = (diffPlayerOne > 0.0f) ? diffPlayerOne : -diffPlayerOne;
+
+	float diffPlayerTwo = mPlayerTwoPaddlePos.y - mBallPos.y;
+	diffPlayerTwo = (diffPlayerTwo > 0.0f) ? diffPlayerTwo : -diffPlayerTwo;
+
+	// Check ball collision with player 1 paddle
 	if (
 		// y-difference is small enough
-		diff <= _paddleHeight / 2.0f &&
+		diffPlayerOne <= _paddleHeight / 2.0f &&
 		// x-position is right
 		mBallPos.x <= 25.0f && mBallPos.x >= 20.0f &&
 		// the ball is moving to the left
@@ -153,12 +187,15 @@ void Game::UpdateGame()
 		mBallVel.x *= -1.0f;
 	}
 	// Check if offscreen to end game
-	else if (mBallPos.x <= 0.0f)
+	else if (mBallPos.x <= 0.0f || mBallPos.x >= _screenWidth)
 	{
 		mIsRunning = false;
 	}
-	// Check collision with right wall
-	else if(mBallPos.x >= (_screenWidth - _wallThickness) && mBallVel.x > 0.0f)
+	// Check collision with player 2 paddle
+	else if(
+		diffPlayerTwo <= _paddleHeight / 2.0f &&
+		mBallPos.x >= (_screenWidth - 25.0f) && mBallPos.x <= (_screenWidth - 20.0f) &&
+		mBallVel.x > 0.0f)
 	{
 		mBallVel.x *= -1.0f;
 	}
@@ -197,13 +234,6 @@ void Game::GenerateOutput()
 	wall.y = _screenHeight - _wallThickness;
 	SDL_RenderFillRect(mRenderer, &wall);
 
-	// Right wall 
-	wall.x = _screenWidth - _wallThickness;
-	wall.y = 0;
-	wall.w = _wallThickness;
-	wall.h = _screenWidth;
-	SDL_RenderFillRect(mRenderer, &wall);
-
 	// Draw ball
 	SDL_Rect ball{
 		static_cast<int>(mBallPos.x - _wallThickness / 2),
@@ -214,15 +244,25 @@ void Game::GenerateOutput()
 
 	SDL_RenderFillRect(mRenderer, &ball);
 
-	// Draw paddle
-	SDL_Rect paddle{
-		static_cast<int>(mPaddlePos.x),
-		static_cast<int>(mPaddlePos.y - _paddleHeight / 2),
+	// Draw player one paddle
+	SDL_Rect PlayerOnePaddle{
+		static_cast<int>(mPlayerOnePaddlePos.x),
+		static_cast<int>(mPlayerOnePaddlePos.y - _paddleHeight / 2),
 		_wallThickness,
 		static_cast<int>(_paddleHeight)
 	};
 
-	SDL_RenderFillRect(mRenderer, &paddle);
+	SDL_RenderFillRect(mRenderer, &PlayerOnePaddle);
+
+	// Draw player two paddle
+	SDL_Rect PlayerTwoPaddle{
+		static_cast<int>(mPlayerTwoPaddlePos.x),
+		static_cast<int>(mPlayerTwoPaddlePos.y - _paddleHeight / 2),
+		_wallThickness,
+		static_cast<int>(_paddleHeight)
+	};
+
+	SDL_RenderFillRect(mRenderer, &PlayerTwoPaddle);
 
 
 	SDL_RenderPresent(mRenderer);

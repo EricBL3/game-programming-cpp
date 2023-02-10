@@ -33,10 +33,15 @@ private:
 	SDL_Renderer* mRenderer;
 	SDL_Window* mWindow;
 	bool mIsRunning;
-	Vector2 mPaddlePos;
+
+	Vector2 mPlayerOnePaddlePos;
+	int mPlayerOnePaddleDir;
+
+	Vector2 mPlayerTwoPaddlePos;
+	int mPlayerTwoPaddleDir;
+
 	Vector2 mBallPos;
 	Vector2 mBallVel;
 	Uint32 mTicksCount;
-	int mPaddleDir;
 	
 };
