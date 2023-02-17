@@ -3,6 +3,7 @@
 const int _wallThickness = 15;
 const int _screenWidth = 1024;
 const int _screenHeight = 768;
+const int _numberOfBalls = 4;
 const float _paddleHeight = 100.0f;
 const float _paddleSpeed = 300.0f;
 const float _ballXSpeed = -200.0f;
@@ -46,10 +47,23 @@ bool Game::Initialize()
 		return false;
 	}
 
-	mBallPos.x = _screenWidth / 2.0f;
+	srand(time(NULL));
+
+	mBalls.clear();
+	for (int i = 0; i < _numberOfBalls; i++)
+	{
+		Ball* newBall = new Ball();
+		newBall->ballPos.x = rand() % (_screenWidth - 50) + 50.0f;
+		newBall->ballPos.y = rand() % (_screenHeight - _wallThickness) + _wallThickness;
+		newBall->ballVel.x = _ballXSpeed;
+		newBall->ballVel.y = _ballYSpeed;
+		mBalls.push_back(*newBall);
+	}
+
+	/*mBallPos.x = _screenWidth / 2.0f;
 	mBallPos.y = _screenHeight / 2.0f;
 	mBallVel.x = _ballXSpeed;
-	mBallVel.y = _ballYSpeed;
+	mBallVel.y = _ballYSpeed;*/
 
 	mPlayerOnePaddlePos.x = 10.0f;
 	mPlayerOnePaddlePos.y = _screenHeight / 2.0f;
@@ -164,52 +178,56 @@ void Game::UpdateGame()
 		}
 	}
 
-	mBallPos.x += mBallVel.x * deltaTime;
-	mBallPos.y += mBallVel.y * deltaTime;
+	int size = mBalls.size();
+	for (int i = 0; i < size; i++)
+	{
+		mBalls.at(i).ballPos.x += mBalls.at(i).ballVel.x * deltaTime;
+		mBalls.at(i).ballPos.y += mBalls.at(i).ballVel.y * deltaTime;
 
+		float diffPlayerOne = mPlayerOnePaddlePos.y - mBalls.at(i).ballPos.y;
+		// Take absolute value of the difference
+		diffPlayerOne = (diffPlayerOne > 0.0f) ? diffPlayerOne : -diffPlayerOne;
+
+		float diffPlayerTwo = mPlayerTwoPaddlePos.y - mBalls.at(i).ballPos.y;
+		diffPlayerTwo = (diffPlayerTwo > 0.0f) ? diffPlayerTwo : -diffPlayerTwo;
+
+		// Check ball collision with player 1 paddle
+		if (
+			// y-difference is small enough
+			diffPlayerOne <= _paddleHeight / 2.0f &&
+			// x-position is right
+			mBalls.at(i).ballPos.x <= 25.0f && mBalls.at(i).ballPos.x >= 20.0f &&
+			// the ball is moving to the left
+			mBalls.at(i).ballVel.x < 0.0f)
+		{
+			mBalls.at(i).ballVel.x *= -1.0f;
+		}
+		// Check if offscreen to end game
+		else if (mBalls.at(i).ballPos.x <= 0.0f || mBalls.at(i).ballPos.x >= _screenWidth)
+		{
+			mIsRunning = false;
+		}
+		// Check collision with player 2 paddle
+		else if(
+			diffPlayerTwo <= _paddleHeight / 2.0f &&
+			mBalls.at(i).ballPos.x >= (_screenWidth - 25.0f) && mBalls.at(i).ballPos.x <= (_screenWidth - 20.0f) &&
+			mBalls.at(i).ballVel.x > 0.0f)
+		{
+			mBalls.at(i).ballVel.x *= -1.0f;
+		}
+
+		// Check ball collisions with top wall
+		if (mBalls.at(i).ballPos.y <= _wallThickness && mBalls.at(i).ballVel.y < 0.0f)
+		{
+			mBalls.at(i).ballVel.y *= -1;
+		}
+		// Check ball collisions with bottom wall
+		if (mBalls.at(i).ballPos.y >= _screenHeight - _wallThickness && mBalls.at(i).ballVel.y > 0.0f)
+		{
+			mBalls.at(i).ballVel.y *= -1;
+		}
+	}
 	
-	float diffPlayerOne = mPlayerOnePaddlePos.y - mBallPos.y;
-	// Take absolute value of the difference
-	diffPlayerOne = (diffPlayerOne > 0.0f) ? diffPlayerOne : -diffPlayerOne;
-
-	float diffPlayerTwo = mPlayerTwoPaddlePos.y - mBallPos.y;
-	diffPlayerTwo = (diffPlayerTwo > 0.0f) ? diffPlayerTwo : -diffPlayerTwo;
-
-	// Check ball collision with player 1 paddle
-	if (
-		// y-difference is small enough
-		diffPlayerOne <= _paddleHeight / 2.0f &&
-		// x-position is right
-		mBallPos.x <= 25.0f && mBallPos.x >= 20.0f &&
-		// the ball is moving to the left
-		mBallVel.x < 0.0f)
-	{
-		mBallVel.x *= -1.0f;
-	}
-	// Check if offscreen to end game
-	else if (mBallPos.x <= 0.0f || mBallPos.x >= _screenWidth)
-	{
-		mIsRunning = false;
-	}
-	// Check collision with player 2 paddle
-	else if(
-		diffPlayerTwo <= _paddleHeight / 2.0f &&
-		mBallPos.x >= (_screenWidth - 25.0f) && mBallPos.x <= (_screenWidth - 20.0f) &&
-		mBallVel.x > 0.0f)
-	{
-		mBallVel.x *= -1.0f;
-	}
-
-	// Check ball collisions with top wall
-	if (mBallPos.y <= _wallThickness && mBallVel.y < 0.0f)
-	{
-		mBallVel.y *= -1;
-	}
-	// Check ball collisions with bottom wall
-	if (mBallPos.y >= _screenHeight - _wallThickness && mBallVel.y > 0.0f)
-	{
-		mBallVel.y *= -1;
-	}
 }
 
 void Game::GenerateOutput()
@@ -234,15 +252,28 @@ void Game::GenerateOutput()
 	wall.y = _screenHeight - _wallThickness;
 	SDL_RenderFillRect(mRenderer, &wall);
 
-	// Draw ball
-	SDL_Rect ball{
-		static_cast<int>(mBallPos.x - _wallThickness / 2),
-		static_cast<int>(mBallPos.y - _wallThickness / 2),
-		_wallThickness,
-		_wallThickness
-	};
+	// Right wall 
+	/*
+	wall.x = _screenWidth - _wallThickness;
+	wall.y = 0;
+	wall.w = _wallThickness;
+	wall.h = _screenWidth;
+	SDL_RenderFillRect(mRenderer, &wall);
+	*/
 
-	SDL_RenderFillRect(mRenderer, &ball);
+	// Draw ball
+	int size = mBalls.size();
+	for (int i = 0; i < size; i++)
+	{
+		SDL_Rect ball{
+			static_cast<int>(mBalls.at(i).ballPos.x - _wallThickness / 2),
+			static_cast<int>(mBalls.at(i).ballPos.y - _wallThickness / 2),
+			_wallThickness,
+			_wallThickness
+		};
+
+		SDL_RenderFillRect(mRenderer, &ball);
+	}
 
 	// Draw player one paddle
 	SDL_Rect PlayerOnePaddle{
