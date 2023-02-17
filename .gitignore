@@ -1,2 +1,14 @@
-.vs
 *.dll
+*.db
+*.user
+*.opendb
+Debug/
+Release/
+.DS_Store
+*xcuserdatad*
+*.xccheckout
+*.stackdump
+.vs
+Chapter14/Assets/Saved.gplevel
+Chapter14/Assets/*.bin
+External/FMOD
