@@ -3,6 +3,8 @@
 #include <algorithm>
 #include "Actor.h"
 #include "SpriteComponent.h"
+#include "Ship.h"
+#include "BGSpriteComponent.h"
 
 const int _screenWidth = 1024;
 const int _screenHeight = 768;
@@ -11,8 +13,7 @@ Game::Game() :
 	mWindow(nullptr),
 	mRenderer(nullptr),
 	mIsRunning(true),
-	mUpdatingActors(false),
-	mTicksCount(0)
+	mUpdatingActors(false)
 {
 }
 
@@ -47,6 +48,8 @@ bool Game::Initialize()
 		return false;
 	}
 
+	LoadData();
+
 	mTicksCount = SDL_GetTicks();
 
 	return true;
@@ -64,6 +67,8 @@ void Game::RunLoop()
 
 void Game::Shutdown()
 {
+	UnloadData();
+	IMG_Quit();
 	SDL_DestroyRenderer(mRenderer);
 	SDL_DestroyWindow(mWindow);
 	SDL_Quit();
@@ -122,6 +127,24 @@ void Game::RemoveSprite(SpriteComponent* sprite)
 
 void Game::ProcessInput()
 {
+	SDL_Event event;
+	while (SDL_PollEvent(&event))
+	{
+		switch (event.type)
+		{
+			case SDL_QUIT:
+				mIsRunning = false;
+				break;
+		}
+	}
+
+	const Uint8* state = SDL_GetKeyboardState(NULL);
+	if (state[SDL_SCANCODE_ESCAPE])
+	{
+		mIsRunning = false;
+	}
+
+	mShip->ProcessKeyboard(state);
 }
 
 void Game::UpdateGame()
@@ -175,11 +198,60 @@ void Game::GenerateOutput()
 {
 	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
 	SDL_RenderClear(mRenderer);
+
+	for (auto sprite : mSprites)
+	{
+		sprite->Draw(mRenderer);
+	}
+
+	SDL_RenderPresent(mRenderer);
 }
 
 void Game::LoadData()
 {
+	// Player ship
+	mShip = new Ship(this);
+	mShip->SetPosition(Vector2(100.0f, 348.0f));
+	mShip->SetScale(1.5f);
 
+	// Actor for bg
+	Actor* temp = new Actor(this);
+	temp->SetPosition(Vector2(512.0f, 384.0f));
+
+	// Far bg
+	BGSpriteComponent* bg = new BGSpriteComponent(temp);
+	bg->SetScreenSize(Vector2(_screenWidth, _screenWidth));
+	std::vector<SDL_Texture*> bgTextures = {
+		GetTexture("Assets/Farback01.png"),
+		GetTexture("Assets/Farback02.png"),
+	};
+	bg->SetBGTextures(bgTextures);
+	bg->SetScrollSpeed(-100.0f);
+
+	// Close bg
+	bg = new BGSpriteComponent(temp, 50);
+	bg->SetScreenSize(Vector2(_screenWidth, _screenWidth));
+	bgTextures = {
+		GetTexture("Assets/Stars.png"),
+		GetTexture("Assets/Stars.png"),
+	};
+	bg->SetBGTextures(bgTextures);
+	bg->SetScrollSpeed(-200.0f);
+}
+
+void Game::UnloadData()
+{
+	while (!mActors.empty())
+	{
+		delete mActors.back();
+	}
+
+	for (auto i : mTextures)
+	{
+		SDL_DestroyTexture(i.second);
+	}
+
+	mTextures.clear();
 }
 
 SDL_Texture* Game::GetTexture(const std::string& filename)

@@ -2,6 +2,8 @@
 
 #include "SDL.h"
 #include <unordered_map>
+#include <string>
+#include <vector>
 
 class Game
 {
@@ -27,6 +29,7 @@ private:
 	void UpdateGame();
 	void GenerateOutput();
 	void LoadData();
+	void UnloadData();
 
 	// Member variables
 	SDL_Renderer* mRenderer;
@@ -40,5 +43,7 @@ private:
 
 	std::unordered_map<std::string, SDL_Texture*> mTextures;
 	std::vector<class SpriteComponent*> mSprites;
+
+	class Ship* mShip;
 
 };
