@@ -1,4 +1,8 @@
 #include "Game.h"
+#include "SDL_image.h"
+#include <algorithm>
+#include "Actor.h"
+#include "SpriteComponent.h"
 
 const int _screenWidth = 1024;
 const int _screenHeight = 768;
@@ -34,6 +38,12 @@ bool Game::Initialize()
 	if (!mRenderer)
 	{
 		SDL_Log("Failed to create renderer: %s", SDL_GetError());
+		return false;
+	}
+
+	if (IMG_Init(IMG_INIT_PNG) == 0)
+	{
+		SDL_Log("Unable to initialize SDL_image: %s", SDL_GetError());
 		return false;
 	}
 
@@ -87,6 +97,27 @@ void Game::RemoveActor(Actor* actor)
 		std::iter_swap(iter, mActors.end() - 1);
 		mActors.pop_back();
 	}
+}
+
+void Game::AddSprite(SpriteComponent* sprite)
+{
+	int myDrawOrder = sprite->GetDrawOrder();
+	auto iter = mSprites.begin();
+	for (; iter != mSprites.end(); ++iter)
+	{
+		if (myDrawOrder < (*iter)->GetDrawOrder())
+		{
+			break;
+		}
+	}
+
+	mSprites.insert(iter, sprite);
+}
+
+void Game::RemoveSprite(SpriteComponent* sprite)
+{
+	auto iter = std::find(mSprites.begin(), mSprites.end(), sprite);
+	mSprites.erase(iter);
 }
 
 void Game::ProcessInput()
@@ -144,4 +175,38 @@ void Game::GenerateOutput()
 {
 	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
 	SDL_RenderClear(mRenderer);
+}
+
+void Game::LoadData()
+{
+
+}
+
+SDL_Texture* Game::GetTexture(const std::string& filename)
+{
+	SDL_Texture* texture = nullptr;
+	auto iter = mTextures.find(filename);
+	if (iter != mTextures.end())
+	{
+		texture = iter->second;
+	}
+	else
+	{
+		SDL_Surface* surf = IMG_Load(filename.c_str());
+		if (!surf)
+		{
+			SDL_Log("Failed to load texture file: %s", filename.c_str());
+			return nullptr;
+		}
+
+		texture = SDL_CreateTextureFromSurface(mRenderer, surf);
+		SDL_FreeSurface(surf);
+		if (!texture)
+		{
+			SDL_Log("Failed to convert surface to texture for: %s", filename.c_str());
+			return nullptr;
+		}
+	}
+
+	return texture;
 }
